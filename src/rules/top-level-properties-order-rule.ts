@@ -1,4 +1,4 @@
-import { YAMLMap, isMap, isScalar } from 'yaml';
+import { Pair, YAMLMap, isMap, isScalar } from 'yaml';
 
 import { findLineNumberByKey } from '../util/line-finder';
 import { parseYAML, stringifyDocument } from '../util/yaml-utils';
@@ -129,12 +129,16 @@ class TopLevelPropertiesOrderRule implements Rule {
       key === TopLevelKeys.X_PROPERTIES ? sortedXProperties : [key],
     );
 
+    // Convert to JS object and rebuild to normalize spacing
+    const jsContent = parsedDocument.toJS() as Record<string, unknown>;
+
     const reorderedMap = new YAMLMap<unknown, unknown>();
 
     for (const key of correctOrder) {
-      const item = contents.items.find((node) => isScalar(node.key) && String(node.key.value) === key);
-      if (item) {
-        reorderedMap.items.push(item);
+      const value = jsContent[key];
+      if (value !== undefined) {
+        // Create a new Pair from the JS value to avoid preserving original spacing
+        reorderedMap.items.push(new Pair(key, value));
       }
     }
 

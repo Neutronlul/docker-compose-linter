@@ -29,7 +29,7 @@ x-a:
   some-other-key: some-other-value
 x-b:
   some-key: some-value
-version: '3'
+version: "3"
 services:
   web:
     image: nginx
@@ -113,7 +113,7 @@ networks:
 `;
 
 const yamlWithCustomOrderCorrected = `
-version: '3'
+version: "3"
 services:
   web:
     image: nginx
@@ -193,4 +193,54 @@ test('TopLevelPropertiesOrderRule: should fix the order of top-level properties 
     normalizeYAML(yamlWithCustomOrderCorrected),
     'The top-level properties should be reordered correctly based on custom order.',
   );
+});
+
+test('TopLevelPropertiesOrderRule: should normalize blank lines when fixing single-child properties', (t) => {
+  const yamlWithExtraBlankLines = `
+services:
+  web:
+    image: nginx:latest
+
+networks:
+  network_name:
+    external: true
+
+volumes:
+  data:
+
+
+secrets:
+  secret_name:
+    external: true
+`;
+
+  const rule = new TopLevelPropertiesOrderRule();
+  const fixedYAML = rule.fix(yamlWithExtraBlankLines);
+
+  // Count blank lines between volumes and secrets
+  const lines = fixedYAML.split('\n');
+  let volumesIndex = -1;
+  let secretsIndex = -1;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].startsWith('volumes:')) {
+      volumesIndex = i;
+    }
+    if (lines[i].startsWith('secrets:')) {
+      secretsIndex = i;
+    }
+  }
+
+  // Find the last non-empty line in volumes section
+  let lastVolumesLine = volumesIndex;
+  for (let i = volumesIndex + 1; i < secretsIndex; i += 1) {
+    if (lines[i].trim() !== '') {
+      lastVolumesLine = i;
+    }
+  }
+
+  // Count blank lines between last volumes line and secrets line
+  const blankLineCount = secretsIndex - lastVolumesLine - 1;
+
+  t.is(blankLineCount, 0, 'There should be no blank lines between volumes and secrets sections.');
 });
